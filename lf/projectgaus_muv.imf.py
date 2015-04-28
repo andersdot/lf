@@ -14,6 +14,7 @@ from scipy import stats
 from matplotlib.colors import LogNorm
 import matplotlib 
 import nbdpt.readstat as rds
+import mpld3
 
 matplotlib.rc('xtick', labelsize=20) 
 matplotlib.rc('ytick', labelsize=20) 
@@ -71,7 +72,7 @@ def getdata(statfilename):
 	#return the sorted masses and the ratio of accumulated wanted/all == completeness 
 	return np.log10(stat['mvir'][0:last]), wantmass/allmass #, sigcomp
 
-def calcKde(logtotmass, mags, z, plot=True):
+def calcKde(logtotmass, mags, z, plot=True, labels=None):
 	X = np.array(zip(logtotmass, mags))
 	NN = 1000
 	Nx = NN
@@ -130,7 +131,11 @@ def calcKde(logtotmass, mags, z, plot=True):
 		ax1.set_ylim(ymax, ymin)
 		ax1.set_ylabel('M$_{UV}$', fontsize=fs)
 		ax1.set_xlabel('log M$_h$', fontsize=fs, labelpad=10)		
-
+		if labels is not None:
+			scatter = ax1.scatter(logtotmass, mags, alpha=0.0)
+			l = ['grp {0}'.format(g) for g in labels]
+			tooltip = mpld3.plugins.PointLabelTooltip(scatter, labels=l)
+			mpld3.plugins.connect(fig, tooltip)
 		#ax2.text(0.95, 0.1, 'KDE '+metric +' h=' + str(h), ha='right', va='top', transform=ax2.transAxes, bbox=dict(boxstyle='round', ec='k', fc='w'))
 		ax2.imshow(dens_KDE, origin='lower', norm=LogNorm(),interpolation=None, aspect='auto', extent=(xmin, xmax, ymin, ymax), cmap=plt.cm.binary)
 		ax2.scatter(X[:, 0], X[:, 1], s=1, lw=0, c='k')
@@ -143,6 +148,7 @@ def calcKde(logtotmass, mags, z, plot=True):
 		ax2.legend(loc='lower right')
 		ax2.grid(True, which='both')
 		plt.tight_layout()
+		if labels is not None: mpld3.show()
 		plt.savefig('kde.'+ step + '.' + IMF + '.png')
 		plt.clf()
 	return mean, width, maxdata
@@ -287,7 +293,7 @@ def getWantMag(step, IMF):
 
 
 
-	mean, width, maxdata = calcKde(logmass, mags, z, plot=True)
+	mean, width, maxdata = calcKde(logmass, mags, z, plot=True, labels=grps)
 	nonzero = mean != 0.0
 
 	massPlot = massPlot[nonzero]
@@ -298,7 +304,6 @@ def getWantMag(step, IMF):
 	wantedFit    = (massPlot > minmasscomp) & (massPlot < maxmass[step])
 	wantedSigFit = (massPlot > minmasscomp) & (massPlot < minmasscomp+massWidthSigFit[step])
 	slope, yint  = findSlopeYint(step, IMF, mean, width, maxdata, wantedFit, wantedSigFit, z)
-
 
 	highsigProj = P(projectedMass, slope[1], yint[1])
 	lowsigProj  = P(projectedMass, slope[2], yint[2])
