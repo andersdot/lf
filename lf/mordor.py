@@ -4,9 +4,11 @@ import numpy as np
 import customCmap as cc
 import pdb
 import os
+import sys
 
-threads = 2
-
+threads = sys.argv[1]
+if threads == 'None': threads = None
+else threads = int(threads)
 #color palette 1
 color1 = (5, 16, 20)
 color2 = (20, 33, 35)
@@ -91,7 +93,7 @@ qty = 'rho'
 
 resolution = 4000
 n = resolution
-nz = 200
+nz = 100
 width = 6000
 
 prefix = filename.split('/')[-1].split('.')[0]
@@ -110,17 +112,21 @@ print prefix
 
 try: 
     print 'trying to load grid'
-    grid = np.load(dir + 'grid.' + prefix + '.' + str(resolution) + '.' + qty +'.new.npy')
+    grid = np.load(dir + 'grid.' + prefix + '.' + str(resolution) + '.' + str(nz) +'.' + qty +'.npy')
 except IOError:
     print 'building grid'
     sim = pynbody.load(filename)
     sim.physical_units()
     sim.gas['smooth'] = (sim.gas['mass']/sim.gas['rho'])**(1,3)
     grid = pynbody.sph.to_3d_grid(sim.gas, qty = qty, nx=n, ny=n, nz=nz, threaded=threads)
-    np.save(dir + 'grid.' + prefix + '.' + str(resolution) + '.' + qty + '.new', grid)
+    np.save(dir + 'grid.' + prefix + '.' + str(resolution) + '.' + str(nz) + qty, grid)
 
 grid[np.where(grid == 0)] = abs(grid[np.where(abs(grid != 0))]).min()
-plt.imshow(np.log10(grid[:,:,193]), cmap=cmap, vmin=vmin, vmax=vmax)
+fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2,2)
+ax1.imshow(np.log10(grid[:,:, 10]), cmap=cmap, vmin=vmin, vmax=vmax)
+ax2.imshow(np.log10(grid[:,:,100]), cmap=cmap, vmin=vmin, vmax=vmax)
+ax3.imshow(np.log10(grid[:,:,150]), cmap=cmap, vmin=vmin, vmax=vmax)
+ax4.imshow(np.log10(grid[:,:,193]), cmap=cmap, vmin=vmin, vmax=vmax)
 plt.show()
 pdb.set_trace()
 print 'creating images'
