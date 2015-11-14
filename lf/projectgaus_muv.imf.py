@@ -1,20 +1,23 @@
 import numpy as np
 from matplotlib import pyplot as plt
 from scipy import integrate
-from astroML.datasets import generate_mu_z
+#from astroML.datasets import generate_mu_z
 from astroML.cosmology import Cosmology
 from astroML.plotting.mcmc import convert_to_stdev
-from astroML.decorators import pickle_results
+#from astroML.decorators import pickle_results
 from astroML.plotting import hist
 import sys
 import pdb
 from mpl_toolkits.mplot3d import axes3d
-from astroML.density_estimation import KDE, KNeighborsDensity
+#from astroML.density_estimation import KDE, KNeighborsDensity
+from sklearn import cross_validation
+from sklearn import neighbors
+from sklearn.grid_search import GridSearchCV
 from scipy import stats
 from matplotlib.colors import LogNorm
 import matplotlib 
 import nbdpt.readstat as rds
-import mpld3
+#import mpld3
 
 matplotlib.rc('xtick', labelsize=20) 
 matplotlib.rc('ytick', labelsize=20) 
@@ -52,7 +55,7 @@ def comp_muv_mtot(x, y, sig, amin,amax,bmin,bmax,Nbins=20):
 
 
 def getdata(statfilename):
-	redshift = {'000744':8, '000891':7, '001093':6, '001380':5, '001818':4}
+	redshift = {'000547':10, '000744':8, '000891':7, '001093':6, '001380':5, '001818':4}
 	z = redshift[statfilename.split('.')[2]]
 	stat = np.load(statfilename)
 	minNsfh = 1e4
@@ -74,32 +77,48 @@ def getdata(statfilename):
 
 def calcKde(logtotmass, mags, z, plot=True, labels=None):
 	X = np.array(zip(logtotmass, mags))
+	grid = GridSearchCV(neighbors.KernelDensity(), 
+			    {'bandwidth':np.logspace(-1, 1, 20), 
+			     'kernel':['gaussian', 'cosine']}, 
+			    cv=len(mags))
+	#pdb.set_trace()
+	grid.fit(X)
+	kde = grid.best_estimator_
+	#pdb.set_trace()
 	NN = 1000
 	Nx = NN
 	Ny = NN
-
-	#xmin, xmax = (9, 12) #(np.min(logtotmass), np.max(logtotmass))
-	#ymin, ymax = (-24, -8) #(np.min(mags), np.max(mags))
+	
 	massPlot, magPlot = getPlotArrays()
 	xmin = np.min(massPlot)
 	xmax = np.max(massPlot)
 	ymin = np.min(magPlot)
 	ymax = np.max(magPlot)
+	Xgrid = np.vstack(map(np.ravel, np.meshgrid(np.linspace(xmin, xmax, Nx), 
+						    np.linspace(ymin, ymax, Ny)))).T
+	dens_KDE = np.exp(kde.score_samples(Xgrid).reshape((Nx,Ny)))
+        #dens_KDE = np.exp(kde.score_samples(X).reshape((Nx,Ny))
+
+
+
+	#xmin, xmax = (9, 12) #(np.min(logtotmass), np.max(logtotmass))
+	#ymin, ymax = (-24, -8) #(np.min(mags), np.max(mags))
+
 	#massSample   = np.linspace(xmin, xmax, NN) #this is what logmass is being sampled in below 
 	#magplot = np.linspace(ymin, ymax, NN)
 	#comp    = completeness(mtots, alpha, beta)
 
-	Xgrid = np.vstack(map(np.ravel, np.meshgrid(np.linspace(xmin, xmax, Nx), 
-												np.linspace(ymin, ymax, Ny)))).T
 
-	metric = 'tophat'
-	colors={0.075:'blue', 0.085:'green', 0.095:'yellow', 0.105:'orange', 0.115:'red', 0.125:'black'}
-	hh = [0.075, 0.085, 0.095, 0.105, 0.115, 0.125]
 
-	h = hh[2]
+	#metric = 'tophat'
+	#colors={0.075:'blue', 0.085:'green', 0.095:'yellow', 
+	#0.105:'orange', 0.115:'red', 0.125:'black'}
+	#hh = [0.075, 0.085, 0.095, 0.105, 0.115, 0.125]
 
-	kde = KDE(metric=metric, h=h)
-	dens_KDE = kde.fit(X).eval(Xgrid).reshape((Nx, Ny))
+	#h = hh[2]
+
+	#kde = KDE(metric=metric, h=h)
+	#dens_KDE = kde.fit(X).eval(Xgrid).reshape((Nx, Ny))
 
 	N = len(dens_KDE[:,0])
 	mean = np.zeros(N)
@@ -124,7 +143,7 @@ def calcKde(logtotmass, mags, z, plot=True, labels=None):
 		ax2 = plt.subplot(122)
 		fs = 20
 
-		ax1.imshow(dens_KDE, origin='lower', norm=LogNorm(),interpolation=None, aspect='auto', extent=(xmin, xmax, ymin, ymax), cmap=plt.cm.binary)
+		ax1.imshow(dens_KDE, origin='lower', norm=LogNorm(),interpolation=None, aspect='auto', extent=(xmin, xmax, ymin, ymax)) #, cmap=plt.cm.binary)
 		ax1.scatter(X[:, 0], X[:, 1], s=1, lw=0, c='k')
 		ax1.text(0.35, 0.95, "Vulcan z ~ " + str(z), ha='right', va='top', transform=ax1.transAxes, bbox=dict(boxstyle='round', ec='k', fc='w'))
 		ax1.set_xlim(xmin, xmax)
@@ -137,7 +156,7 @@ def calcKde(logtotmass, mags, z, plot=True, labels=None):
 			tooltip = mpld3.plugins.PointLabelTooltip(scatter, labels=l)
 			mpld3.plugins.connect(fig, tooltip)
 		#ax2.text(0.95, 0.1, 'KDE '+metric +' h=' + str(h), ha='right', va='top', transform=ax2.transAxes, bbox=dict(boxstyle='round', ec='k', fc='w'))
-		ax2.imshow(dens_KDE, origin='lower', norm=LogNorm(),interpolation=None, aspect='auto', extent=(xmin, xmax, ymin, ymax), cmap=plt.cm.binary)
+		ax2.imshow(dens_KDE, origin='lower', norm=LogNorm(),interpolation=None, aspect='auto', extent=(xmin, xmax, ymin, ymax))#, cmap=plt.cm.binary)
 		ax2.scatter(X[:, 0], X[:, 1], s=1, lw=0, c='k')
 		ax2.plot(massPlot, mean, linewidth=2, c='g', label='gaussian fit')
 		ax2.fill_between(massPlot, (mean + width), (mean - width), alpha=0.5, color='g')
@@ -149,7 +168,9 @@ def calcKde(logtotmass, mags, z, plot=True, labels=None):
 		ax2.grid(True, which='both')
 		plt.tight_layout()
 		if labels is not None: mpld3.show()
+		#plt.show()
 		plt.savefig('kde.'+ step + '.' + IMF + '.png')
+		print 'saved KDE image'
 		plt.clf()
 	return mean, width, maxdata
 
@@ -239,8 +260,9 @@ def findSlopeYint(step, IMF, mean, width, maxdata, wanted, wanted_sig, z):
 			ax2.legend()
 			ax2.set_xlabel(r'$a$')
 			ax2.set_ylabel(r'$b$')	
-
+			#plt.show()
 			plt.savefig(labels[i] + '.' + step + '.' + IMF + '.png')
+			print 'saving fit image' 
 			plt.clf()
 			ab[i] = a_best
 			bb[i] = b_best
@@ -262,19 +284,21 @@ def getWantMag(step, IMF):
 
 
 	#maxmass = {'001818':10.9945994599, '001380':10.8615861586, '001093':10.6845684568, '000891':10.4845484548, '000744':10.2685268527}
-	maxmass = {'001818':10.5, '001380':10.5, '001093':10.5, '000891':10.5, '000744':10.}
-	maxmass_sig = {'001818':10., '001380':9.8, '001093':9.8, '000891':9.8, '00744':9.8}
-	massWidthSigFit = {'001818':0.8, '001380':0.8, '001093':0.8, '000891':0.5, '000744':0.3}
-	redshift = {'000744':8, '000891':7, '001093':6, '001380':5, '001818':4}
+	maxmass = {'001818':10.5, '001380':10.5, '001093':10.5, '000891':10.5, '000744':10., '000547':10.}
+	maxmass_sig = {'001818':10., '001380':9.8, '001093':9.8, '000891':9.8, '000744':9.8, '000547':9.8}
+	massWidthSigFit = {'001818':0.8, '001380':0.8, '001093':0.8, '000891':0.3, '000744':0.3, '000547':0.3}
+	redshift = {'000547': 10, '000744':8, '000891':7, '001093':6, '001380':5, '001818':4}
 	z = redshift[step]
 
 	massPlot, magPlot = getPlotArrays()
 
-	data = np.genfromtxt('cosmo25p.768sg1bwK1C52.'+step+'.tipsy.'+IMF+'.mag1', dtype=['float32', 'float32', 'float32', 'int32'], names=['mass', 'lum', 'mag', 'grp'], skip_header=1)
+	data = np.genfromtxt('cosmo25p.768sg1bwK1C52.'+step+'.tipsy.'+IMF+'.fuv.mag1', dtype=['float32', 'float32', 'float32', 'int32'], names=['mass', 'lum', 'mag', 'grp'], skip_header=1, usecols=[0,1,2,3])
 	grps = data['grp']
 	mags = data['mag']
 	logmass = np.log10(data['mass'])
-
+	notnans = ~np.isnan(logmass)
+	logmass = logmass[notnans]
+	mags = mags[notnans]
 	statfilename = 'cosmo25p.768sg1bwK1C52.'+step+'.rockstar.stat'
 	try:
 		stat = np.load(statfilename + '.npy')
@@ -282,7 +306,7 @@ def getWantMag(step, IMF):
 		stat = rds.readstat(statfilename)
 		np.save(statfilename, stat)
 
-	wantMag     = (~np.in1d(stat['grp'], grps) & (stat['npart'] > 64))
+	wantMag     = (~np.in1d(stat['grp'], grps) & (stat['npart'] > 1024))
 	massWantMag = np.log10(stat[wantMag]['mvir'])
 
 	massCompleteness, completeness = getdata('cosmo25p.768sg1bwK1C52.'+step+'.rockstar.stat.npy')
@@ -290,20 +314,21 @@ def getWantMag(step, IMF):
 	compLogmassLA = massPlot > minmasscomp
 	print '~ ~ ~ ~ ~ Minimum mass complete: ', minmasscomp 
 	projectedMass = np.linspace(xplotmin, minmasscomp, 1000)
-
-
-
-	mean, width, maxdata = calcKde(logmass, mags, z, plot=True, labels=grps)
-	nonzero = mean != 0.0
-
-	massPlot = massPlot[nonzero]
-	mean     = mean[nonzero]
-	width    = width[nonzero]
-	compLogmassLA = compLogmassLA[nonzero]
-
-	wantedFit    = (massPlot > minmasscomp) & (massPlot < maxmass[step])
-	wantedSigFit = (massPlot > minmasscomp) & (massPlot < minmasscomp+massWidthSigFit[step])
-	slope, yint  = findSlopeYint(step, IMF, mean, width, maxdata, wantedFit, wantedSigFit, z)
+	try:
+		slope = np.load('slope.' + step + '.' + IMF + '.npy')
+		yint = np.load('yint.' + step + '.' + IMF + '.npy')
+	except IOError:
+		mean, width, maxdata = calcKde(logmass, mags, z, plot=True, labels=None) #labels= grps
+		nonzero = mean != 0.0
+		
+		massPlot = massPlot[nonzero]
+		mean     = mean[nonzero]
+		width    = width[nonzero]
+		compLogmassLA = compLogmassLA[nonzero]
+		
+		wantedFit    = (massPlot > minmasscomp) & (massPlot < maxmass[step])
+		wantedSigFit = (massPlot > minmasscomp) & (massPlot < minmasscomp+massWidthSigFit[step])
+		slope, yint  = findSlopeYint(step, IMF, mean, width, maxdata, wantedFit, wantedSigFit, z)
 
 	highsigProj = P(projectedMass, slope[1], yint[1])
 	lowsigProj  = P(projectedMass, slope[2], yint[2])
@@ -320,16 +345,37 @@ def getWantMag(step, IMF):
 	f.close()
 
 
-	avgMag    =  slope[0]*massWantMag + yint[0]
-	sigsplus  =  slope[1]*massWantMag + yint[1] - avgMag
-	sigsminus = -slope[2]*massWantMag - yint[2] + avgMag
+	avgMag    =  P(massWantMag, slope[0], yint[0])
+	sigsminus =  avgMag - P(massWantMag, slope[2], yint[2])
+	sigsplus  =  P(massWantMag, slope[1], yint[1]) - avgMag
 	sigMag = (sigsplus + sigsminus)/2.
-	mags_fill = np.random.normal(loc=avgMag, scale=sigMag, size=len(avgMag))
-	np.save('magsfill.'+step + '.' + IMF, mags_fill)
+
+	if np.min(sigMag) < 0.: #step in ['000547', '000744', '000891', '001039', '001380', '001818']:
+		print 'step 000547 fix'
+                m1 = slope[0]
+                m2 = slope[2]
+                b1 = yint[0]
+                b2 = yint[2]
+                m3 = (2*m1 + m2*m1**2. - m2)/(2*m1*m2 -m1**2. + 1)
+                b3 = m1*(b2-b1)/(m1-m2)+b1 - m3*(b2-b1)/(m1-m2)
+                sigsplus = P(massWantMag, m3, b3) - avgMag
+	#else: 
+	#	sigsplus  =  P(massWantMag, slope[1], yint[1]) - avgMag
+
+
+		sigMag = (sigsplus + sigsminus)/2.
+	
+	try: 
+		mags_fill = np.random.normal(loc=avgMag, scale=sigMag, size=len(avgMag))
+		np.save('magsfill.'+step + '.' + IMF, mags_fill)
+	except ValueError:
+		pdb.set_trace()
+		mags_fill = None
+
 
 	xlinplot = np.linspace(xplotmin, xplotmax, 100)
 	zeroplot = np.zeros(100)
-
+	print 'Check!!: ', P(projectedMass[-1], slope[2], yint[2]), (mean - width)[compLogmassLA][0]
 	plt.figure(figsize=(13.333, 13.333))
 	plt.plot(massPlot[compLogmassLA], mean[compLogmassLA], linewidth=2, c='g', label='gaussian fit')
 	for i in range(len(slope)): plt.plot(projectedMass, P(projectedMass, slope[i], yint[i]), color='b')
@@ -339,7 +385,7 @@ def getWantMag(step, IMF):
 	                        	P(projectedMass, slope[2], yint[2]), alpha=0.5, color='b')
 
 	plt.scatter(logmass, mags, s=1, lw=0, c='k')
-	plt.scatter(massWantMag, mags_fill, s=1, lw=0, c='r')
+	if mags_fill is not None: plt.scatter(massWantMag, mags_fill, s=1, lw=0, c='r')
 
 	plt.plot(xlinplot, zeroplot + mag98perComp, '-', color='k', linewidth=2, label='current limit') # magplot[mtots == np.min(mtots[cc])], '--k')
 	plt.plot(xlinplot, zeroplot + mag50perComp, '--', color='k', linewidth=2, label = '50% limit')
@@ -354,7 +400,7 @@ def getWantMag(step, IMF):
 	plt.xlim(xplotmin, xplotmax)
 	plt.legend(loc='upper left')
 	plt.tight_layout()
-	if (step == '000744') & (IMF == 'kroupa'): pdb.set_trace()
+	#if (step == '000744') & (IMF == 'kroupa'): pdb.set_trace()
 	plt.savefig('project.' + step + '.' + IMF + '.png')
 	plt.clf()
 
