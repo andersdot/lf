@@ -203,7 +203,8 @@ def plot(filename, subplot=False, i=0, plot=False, restore=False, save=False, IM
 	phiminus = 2./5*(phistar[ind[z]]+plusphi[ind[z]])*np.log(10)*(10.**(2./5*((Mstar[ind[z]]-dMstar[ind[z]])-xx)))**((alpha[ind[z]]-dalpha[ind[z]])+1.)*np.exp(-10.**(2./5*((Mstar[ind[z]]-dMstar[ind[z]])-xx)))
 	phiplus  = 2./5*(phistar[ind[z]]-minusphi[ind[z]])*np.log(10)*(10.**(2./5*((Mstar[ind[z]]+dMstar[ind[z]])-xx)))**((alpha[ind[z]]+dalpha[ind[z]])+1.)*np.exp(-10.**(2./5*((Mstar[ind[z]]+dMstar[ind[z]])-xx)))
 
-	if plot: 
+	if plot:
+		"""
 		mcmcdata = np.load('mcmc_chains.npy')
 		par = mcmcdata[mcmcz[z]]
 		Mstarmcmc = par[0:1000000-1]
@@ -216,6 +217,7 @@ def plot(filename, subplot=False, i=0, plot=False, restore=False, save=False, IM
 	#if i < 2:p = plt.Rectangle((-20,1), 0, 0, alpha=0.5, color='k', label='Bouwens et al 2014')
 		p = plt.Rectangle((-20,1), 0, 0, alpha=0.5, color=color[z], label='z~'+str(z))
 		ax.add_patch(p)
+		"""
 		if i in [3, 4]: ax.set_xlabel('M$_{UV}$',fontsize=20, labelpad=15)
 		if i in [0,3]: ax.set_ylabel('$\phi$ [dex$^{-1}$ Mpc$^{-3}$]', fontsize=20)
 		ax.set_yscale('log', nonposy='clip')

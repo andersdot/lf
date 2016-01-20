@@ -3,8 +3,9 @@ import glob
 import matplotlib.pyplot as plt
 import numpy as np
 import pdb
+import sys
 
-IMF = 'kroupa'
+IMF = sys.argv[1] #'kroupa'
 
 #data = glob.glob('mags.resolved.*.npy')
 data = glob.glob('*.' + IMF + '.mag1')
