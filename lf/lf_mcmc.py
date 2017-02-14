@@ -9,6 +9,7 @@ from matplotlib.ticker import MaxNLocator
 from scipy import integrate
 import pdb
 import matplotlib as mpl
+import dust
 mpl.rcParams['xtick.labelsize'] = 12
 mpl.rcParams['ytick.labelsize'] = 12
 
@@ -163,21 +164,23 @@ for j, step in enumerate(s):
     phi_guess = phi_g[ind[step]]
 
     np.random.seed(123)
-
-    data = np.genfromtxt('cosmo25/cosmo25p.768sg1bwK1C52.'  + step + '.tipsy.kroupa.fuv.mag1', 
+    """
+    filename = 'cosmo25/cosmo25p.768sg1bwK1C52.'  + step + '.tipsy.kroupa.fuv.mag1'
+    data = np.genfromtxt(filename, 
                     names=['mass', 'lum', 'mag', 'grp'], dtype=['float32', 'float32', 'float32', 'int32'],
                     skip_header=1, usecols=[0, 1, 2, 3])
     data = data[~np.isnan(data['mag'])]
     mags = data['mag']*(0.6777/0.7)
-
-    lim = np.genfromtxt('cosmo25/massMagsComplete.' + step + '.' + IMF + '.txt', 
+    """
+    mags = np.load('cosmo25/z' + str(z) + '.fuv.npy')
+    lim = np.genfromtxt('cosmo25/massMagsComplete.z' + str(z) + '.txt', 
                     dtype = ['int32', 'float32', 'float32'], 
                     names = ['comp', 'mass', 'mag'], skip_header=1)
     perComp = 50
     magCompThreshold = lim['mag'][lim['comp'] == perComp]
-    magsfill = np.load('cosmo25/magsfill.'+step + '.' + IMF + '.npy')*(0.6777/0.7)
+    magsfill = np.load('cosmo25/magsfill.z'+ str(z) + '.npy')*(0.6777/0.7)
     allmags = np.concatenate((mags, magsfill))#[magsfill <= magCompThreshold]))
-    A1600 = np.load('cosmo25/extinction.' + step + '.kroupa.npy')
+    A1600 = dust.calcExtinction(allmags, step, IMF, str(z))
     allmags = allmags + A1600 + 0.2 
     mags = allmags[allmags <= magCompThreshold]
     print(magCompThreshold)
@@ -235,9 +238,9 @@ for j, step in enumerate(s):
 
 
     input = np.vstack(([samples[:,0], samples[:,1], np.log10(np.array(phistar))])).T
-    fig = corner.corner(input, labels=["$Mstar$", "$alpha$", "$phistar$"],
-                      truths=[Mstar_guess, alpha_guess, np.log10(phi_guess)])
-    fig.savefig("lf-triangle."+step+".png")
+    #fig = corner.corner(input, labels=["$Mstar$", "$alpha$", "$phistar$"],
+    #                  truths=[Mstar_guess, alpha_guess, np.log10(phi_guess)])
+    #fig.savefig("lf-triangle."+step+".png")
 
 # Plot some samples onto the data.
     xl = np.linspace(np.min(mags), np.max(mags), 100)
@@ -304,15 +307,18 @@ for j, step in enumerate(s):
 for i in [0, 1, 2]: axes_evolution[i].grid(True)
 fig_evolution.savefig('paramEvolution.png')
 fig_paper.savefig('lfEvolution.png')
-"""    alpha_meas.append(alpha_mcmc[0])
-    alpha_plus.append(alpha_mcmc[1])
-    alpha_minus.append(alpha_mcmc[2])
+alpha_meas.append(alpha_mcmc[0])
+alpha_plus.append(alpha_mcmc[1])
+alpha_minus.append(alpha_mcmc[2])
 
-    Mstar_meas.append(M_mcmc[0])
-    Mstar_plus.append(M_mcmc[1])
-    Mstar_minus.append(M_mcmc[2])
+Mstar_meas.append(M_mcmc[0])
+Mstar_plus.append(M_mcmc[1])
+Mstar_minus.append(M_mcmc[2])
 
-    phi_meas.append(phi_mcmc[0])
-    phi_plus.append(phi_mcmc[1])
-    phi_minus.append(phi_mcmc[2])
-    print(alpha_mcmc[0], alpha_mcmc[1], alpha_mcmc[2])"""
+phi_meas.append(phi_mcmc[0])
+phi_plus.append(phi_mcmc[1])
+phi_minus.append(phi_mcmc[2])
+
+np.savez('lf.parameters.mcmc', alpha=alpha_meas, alpha_p=alpha_plus, alpha_m=alpha_minus,
+        mstar = Mstar_meas, mstar_p=Mstar_plus, mstar_m=Mstar_minus,
+        phi=phi_meas, phi_p=phi_plus, phi_m=phi_minus)

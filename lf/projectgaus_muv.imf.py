@@ -291,7 +291,7 @@ def getWantMag(step, IMF):
 	z = redshift[step]
 
 	massPlot, magPlot = getPlotArrays()
-
+	
 	data = np.genfromtxt('cosmo25p.768sg1bwK1C52.'+step+'.tipsy.'+IMF+'.fuv.mag1', dtype=['float32', 'float32', 'float32', 'int32'], names=['mass', 'lum', 'mag', 'grp'], skip_header=1, usecols=[0,1,2,3])
 	grps = data['grp']
 	mags = data['mag']
